@@ -1,7 +1,7 @@
 # Install
 
 ```bash
-npm install bfg-commander
+npm install bfg-vue
 // or
-yarn add bfg-commander
+yarn add bfg-vue
 ``` 
