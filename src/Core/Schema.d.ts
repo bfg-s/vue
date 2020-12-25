@@ -1,20 +1,15 @@
 import { ApplicationContainer } from "bfg-js/src/Support/Application";
-interface anyObject {
-    [key: string]: any;
-}
-interface ruleObject {
-    e: string;
-    a: anyObject;
-    c: anyObject;
-    v: anyObject;
-    m: Array<string>;
-}
+import { ruleObject, anyObject } from "bfg-schema/src/Core/Schema";
 declare const _default: (app: ApplicationContainer) => {
     new (): {
         [x: string]: any;
         vue_app: any;
-        build(element: HTMLElement, rules: ruleObject): void;
-        insert(element: HTMLElement, data: any): void;
+        all_components: anyObject;
+        build(element: HTMLElement, rules: ruleObject): any;
+        wrap_component(rules: ruleObject, content_nodes: Array<any>): any;
+        apply_content(content: Array<HTMLElement>): any[];
+        apply_methods(rules: ruleObject): anyObject;
+        method_request(rules: ruleObject, method: string, params: Array<object>, request_data?: object): Promise<unknown>;
     };
     [x: string]: any;
 };

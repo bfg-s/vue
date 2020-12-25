@@ -1,17 +1,7 @@
 import {ApplicationContainer} from "bfg-js/src/Support/Application";
-import {VueDecorator} from "vue-class-component";
-
-interface anyObject {
-    [key: string]: any;
-}
-
-interface ruleObject {
-    e: string           // Element name
-    a: anyObject        // Attributes
-    c: anyObject        // Contents
-    v: anyObject        // Variables
-    m: Array<string>    // Methods
-}
+import {ruleObject, anyObject} from "bfg-schema/src/Core/Schema";
+import ComponentMixin from "./ComponentMixin";
+import ApplicationMixin from "./ApplicationMixin";
 
 export default (app: ApplicationContainer) => {
 
@@ -19,96 +9,180 @@ export default (app: ApplicationContainer) => {
 
         vue_app: any = null;
 
+        all_components: anyObject = {};
+
         build (element: HTMLElement, rules: ruleObject) {
 
-            rules.e = rules.e.replace('::', '_').replace(/\./g, '_');
+            let content_nodes = Object.assign([], element.childNodes);
 
-            let component: any = app.components.get(rules.e);
+            this.all_components = app.components.all();
+
+            let that = this;
 
             this.vue_app = app.vue.createApp({
-                components: app.components.all(),
+                mixins: [ApplicationMixin(app, rules)],
+                components: this.all_components,
                 render () {
-                    let resolved = app.vue.resolveComponent(rules.e);
-                    console.log(rules.e, component);
-                    return app.vue.createVNode(resolved)
+                    return app.schema.wrap_component(rules, content_nodes);
                 }
             });
 
-            this.vue_app.mount(element, true);
-
-            // let node: HTMLElement = document.createElement(rules.e);
-            //
-            // let content = this.app.schema.apply_content(
-            //     Object.assign([], element.childNodes)
-            // );
-            //
-            // this.app.obj.each(rules.a, (item: string, key: string) => {
-            //     node.setAttribute(key, item);
-            // });
-            //
-            // this.app.obj.each(rules.c, (item: any, key: string) => {
-            //     let appEnd: Node;
-            //     if (typeof item === 'string') {
-            //         appEnd = document.createRange().createContextualFragment(item);
-            //     } else {
-            //         appEnd = this.build(node, item);
-            //     }
-            //     node.appendChild(appEnd);
-            // });
-            //
-            // node.append(...content);
-
-            //return node;
+            return this.vue_app.mount(element, true).$el;
         }
 
-        insert (element: HTMLElement, data: any) {}
+        wrap_component (rules: ruleObject, content_nodes: Array<any>) {
+
+            let resolved;
+
+            let params: object;
+
+            let contents: any = {
+                default: app.vue.withCtx(() => app.schema.apply_content(content_nodes)),
+            };
+
+            if (rules.e in this.all_components) {
+
+                let self_mixin = ComponentMixin(app, rules);
+
+                resolved = app.vue.resolveComponent(rules.e);
+
+                if ('mixins' in resolved) {
+                    resolved.mixins = [...resolved.mixins, self_mixin];
+                } else {
+                    resolved.mixins = [self_mixin];
+                }
+
+                params = {global_rules: rules, ...rules.a, ...app.schema.apply_methods(rules)};
+
+                Object.keys(rules.c).map((item: any) => {
+                    contents[item] = app.vue.withCtx(() => app.schema.apply_content(app.str.to_nodes(rules.c[item])))
+                });
+
+            } else {
+
+                resolved = rules.e;
+
+                params = rules.a;
+            }
+
+            return app.vue.createVNode(
+                resolved, params, contents
+            )
+        }
+
+        apply_content (content: Array<HTMLElement>) {
+
+            return content.map((element: HTMLElement) => {
+
+                if (element instanceof Text) {
+
+                    return element.wholeText;
+
+                } else {
+
+                    let special = element.dataset && ('schemaChild' in element.dataset || 'schema' in element.dataset) ?
+                        true : (
+                            element.dataset &&
+                            ('schemaChildId' in element.dataset && element.dataset.schemaChildId in app.data) ||
+                            ('schemaId' in element.dataset && element.dataset.schemaId in app.data)
+                        );
+
+                    let content_nodes = Object.assign([], element.childNodes);
+
+                    return special ? app.schema.wrap_component(
+                        this.app.schema.rules(element), content_nodes
+                    ) : app.vue.h(
+                        element.nodeName,
+                        app.obj.getElementAttrs(element),
+                        app.schema.apply_content(content_nodes)
+                    );
+                }
+            });
+        }
+
+        apply_methods (rules: ruleObject) {
+
+            let result: anyObject = {};
+
+            if (rules.e in app.data) {
+
+                let methods = app.data[rules.e];
+
+                methods.map((method_name: string) => {
+
+                    result[method_name] = function (...args: Array<object>) {
+
+                        return app.schema.method_request(rules, method_name, args);
+                    };
+                });
+            }
+
+            if (rules.m.length) {
+
+                rules.m.map((method_name: string) => {
+
+                    if (!(method_name in result)) {
+
+                        result[method_name] = function (...args: Array<object>) {
+
+                            return app.schema.method_request(rules, method_name, args);
+                        };
+                    }
+                });
+            }
+
+            return result;
+        }
+
+        method_request (rules: ruleObject, method: string, params: Array<object>, request_data: object = {}) {
+
+            let args = {};
+
+            params.map((i: any) => {if (typeof i === 'object') args = {...args, ...i};});
+
+            return new Promise((resolve, reject) => {
+
+                let glob_token: string = null;
+
+                app.request({
+                    method: 'POST',
+                    body: app.form_data({[rules.id]: method, bfg: true, ...args}),
+                    ...request_data
+                }).then((result: any) => {
+
+                    app.obj.each(result.data.$schema, (rule: ruleObject, name: string) => {
+                        app.event.fire(name, rule);
+                    });
+
+                    resolve(result.data[rules.id]);
+
+                }).catch((xhr: XMLHttpRequest) => {
+
+                    if (xhr.status === 419) {
+
+                        app.request().then((result: any) => {
+
+                            if (result.token) {
+
+                                this.app.server.token = result.token;
+
+                                resolve(app.schema.method_request(rules, method, params));
+
+                            } else {
+
+                                reject(xhr);
+                            }
+
+                        }).catch((xhr: XMLHttpRequest) => {
+
+                            reject(xhr);
+                        });
+                    }
+                    else {
+                        reject(xhr);
+                    }
+                });
+            });
+        }
     }
 };
-
-
-// export class Schema {
-//
-//     constructor(
-//         protected app: ApplicationContainer
-//     ) {
-//     }
-//
-//     rules (element: HTMLElement): ruleObject {
-//
-//         return element && 'schema' in element.dataset ?
-//             this.app.json.decode(element.dataset.schema) : (
-//                 element && 'schemaId' in element.dataset && element.dataset.schemaId in this.app.data ?
-//                     this.app.data[element.dataset.schemaId] : {}
-//             );
-//     }
-//
-//     build (element: HTMLElement, rules: ruleObject) {
-//
-//         let node: HTMLElement = document.createElement(rules.e);
-//
-//         let content = Object.assign([], element.childNodes);
-//
-//         this.app.obj.each(rules.a, (item: string, key: string) => {
-//             node.setAttribute(key, item);
-//         });
-//
-//         this.app.obj.each(rules.c, (item: any, key: string) => {
-//             let appEnd: Node;
-//             if (typeof item === 'string') {
-//                 appEnd = document.createRange().createContextualFragment(item);
-//             } else {
-//                 appEnd = this.build(node, item);
-//             }
-//             node.appendChild(appEnd);
-//         });
-//
-//         node.append(...content);
-//
-//         return node;
-//     }
-//
-//     insert (element: HTMLElement, data: any) {
-//
-//         element.parentNode.replaceChild(data, element);
-//     }
-// }
