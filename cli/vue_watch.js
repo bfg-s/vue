@@ -20,16 +20,17 @@ module.exports = class TestCommand extends Command {
 
     handle () {
 
-        // app.watch.on_change(`${this.path}/**/*.vue`, this.build_json.bind(this));
-        app.watch.on_add(`${this.path}/**/*.vue`, this.build_json.bind(this));
-        app.watch.on_unlink(`${this.path}/**/*.vue`, this.build_json.bind(this));
-        app.watch.on_unlink_dir(`${this.path}/**/*.vue`, this.build_json.bind(this));
-
-        app.cmd.call('watch');
+        if (process.env.NODE_ENV !== 'production') {
+            // app.watch.on_change(`${this.path}/**/*.vue`, this.build_json.bind(this));
+            app.watch.on_add(`${this.path}/**/*.vue`, this.build_json.bind(this));
+            app.watch.on_unlink(`${this.path}/**/*.vue`, this.build_json.bind(this));
+            app.watch.on_unlink_dir(`${this.path}/**/*.vue`, this.build_json.bind(this));
+            app.cmd.call('watch');
+        }
 
         this.build_json();
 
-        return 'wait';
+        return 0;
     }
 
     build_json (path, event) {
