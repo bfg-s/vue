@@ -80,12 +80,7 @@ export default (app: ApplicationContainer) => {
 
                 } else {
 
-                    let special = element.dataset && ('schemaChild' in element.dataset || 'schema' in element.dataset) ?
-                        true : (
-                            element.dataset &&
-                            ('schemaChildId' in element.dataset && element.dataset.schemaChildId in app.data) ||
-                            ('schemaId' in element.dataset && element.dataset.schemaId in app.data)
-                        );
+                    let special = this.app.is_schema_element(element);
 
                     let content_nodes = Object.assign([], element.childNodes);
 
