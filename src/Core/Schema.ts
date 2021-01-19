@@ -141,15 +141,15 @@ export default (app: ApplicationContainer) => {
 
                 app.request({
                     method: 'POST',
-                    body: app.form_data({[rules.id]: method, bfg: true, ...args}),
+                    body: app.form_data({[btoa(rules.id)]: method, bfg: true, ...args}),
                     ...request_data
                 }).then((result: any) => {
 
-                    app.obj.each(result.data.$schema, (rule: ruleObject, name: string) => {
+                    app.obj.each((result.data.$schema || []), (rule: ruleObject, name: string) => {
                         app.event.fire(name, rule);
                     });
 
-                    resolve(result.data[rules.id]);
+                    resolve(result.data.$response);
 
                 }).catch((xhr: XMLHttpRequest) => {
 
