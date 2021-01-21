@@ -19,8 +19,6 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     },
 
     methods: {
-        alert_root (data: string) {
-            alert(data);
-        }
+
     }
 });

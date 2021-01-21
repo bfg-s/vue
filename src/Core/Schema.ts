@@ -145,11 +145,16 @@ export default (app: ApplicationContainer) => {
                     ...request_data
                 }).then((result: any) => {
 
-                    app.obj.each((result.data.$schema || []), (rule: ruleObject, name: string) => {
-                        app.event.fire(name, rule);
-                    });
+                    let schema = result.data.$schema || {};
+                    schema.errors = {};
+                    schema.error_message = null;
+                    app.event.fire(rules.id, schema);
 
-                    resolve(result.data.$response);
+                    if (result.data.$respond) {
+                        app.call(result.data.$respond);
+                    }
+
+                    resolve(result.data.$response || null);
 
                 }).catch((xhr: XMLHttpRequest) => {
 
@@ -168,13 +173,14 @@ export default (app: ApplicationContainer) => {
                                 reject(xhr);
                             }
 
-                        }).catch((xhr: XMLHttpRequest) => {
-
-                            reject(xhr);
-                        });
+                        }).catch((xhr: XMLHttpRequest) => reject(xhr));
                     }
                     else {
-                        reject(xhr);
+                        let err = app.json.decode(xhr.responseText);
+                        if (err && 'errors' in err) {
+                            app.event.fire(rules.id, {errors: err.errors, error_message: err.message});
+                        }
+                        reject({err, xhr});
                     }
                 });
             });

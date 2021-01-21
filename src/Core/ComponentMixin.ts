@@ -1,7 +1,11 @@
 import {ApplicationContainer} from "bfg-js";
-import {ruleObject} from "bfg-schema/src/Core/Schema";
+import {anyObject, ruleObject} from "bfg-schema/src/Core/Schema";
 
 export default (app: ApplicationContainer, rules: ruleObject) => ({
+
+    bind: {},
+    share: [] as any,
+    save: [] as any,
 
     props: {
         global_rules: {required: true, type: Object}
@@ -10,24 +14,70 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     data () {
 
         return {
-            app: app,
-            ...rules.v
+            app,
         };
     },
 
-    mounted () {
+    beforeMount() {
+
+        let obj_name = this.$options.name + (this.$vnode && this.$vnode.key ? '_' + this.$vnode.key : '');
+
         app._cv[rules.id] = this;
+        Object.keys(rules.v).map(key => this[key] = rules.v[key]);
         this.app.event.on(this.global_rules.id, this.__on_component);
+
+        app.obj.each(this.$options.save, (v: string) => {
+            let k = `vue-${obj_name}-${v}`;
+            if (localStorage.getItem(k)) {
+                let a = localStorage.getItem(k);
+                let z = app.json.decode(a);
+                this[v] = z ? z : a;
+            } else {
+                localStorage.setItem(k, typeof this[v] === 'object' ? app.json.encode(this[v]) : this[v]);
+            }
+            this.$watch(v, (val: any) => {
+                localStorage.setItem(k, typeof this[v] === 'object' ? app.json.encode(this[v]) : this[v]);
+            });
+        });
+
+        app.obj.each(this.$options.share, (to: string, from: string|number) => {
+            if (app.num.isNumber(from)) from = to;
+            app.vue.watch(() => this[from], (val: any) => {
+                app.shared_data[to] = val;
+            });
+
+            app.vue.watch(() => app.shared_data[to], (val: any) => {
+                this[from] = val;
+            });
+
+            if (to in app.shared_data) {
+                this[from] = app.shared_data[to];
+            } else {
+                app.shared_data[to] = this[from];
+            }
+        });
+
+        app.obj.each(this.$options.bind, (bind_name: string, inner_method: string) => {
+            if (app.num.isNumber(inner_method)) inner_method = bind_name;
+            app.bind(bind_name, this[inner_method]);
+        });
+    },
+
+    mounted () {
+
     },
 
     unmounted () {
         this.app.event.off(this.global_rules.id, this.__on_component);
+        app.obj.each(this.$options.bind, (bind_name: string) => {
+            app.forget(bind_name);
+        });
     },
 
     methods: {
 
-        __on_component (rules: ruleObject) {
-            this.app.obj.each(rules.v, (val: any, key: string) => {
+        __on_component (variables: anyObject) {
+            this.app.obj.each(variables, (val: any, key: string) => {
                 if (key === '_pn') {
                     this.app.obj.each(val, (params: Array<any>, callable: any) => {
                         let cal = this.app.obj.get(callable, this);

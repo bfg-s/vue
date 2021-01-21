@@ -6,8 +6,6 @@ declare const _default: (app: ApplicationContainer, rules: ruleObject) => {
     };
     mounted(): void;
     unmounted(): void;
-    methods: {
-        alert_root(data: string): void;
-    };
+    methods: {};
 };
 export default _default;

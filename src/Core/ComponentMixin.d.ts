@@ -1,6 +1,9 @@
 import { ApplicationContainer } from "bfg-js";
-import { ruleObject } from "bfg-schema/src/Core/Schema";
+import { anyObject, ruleObject } from "bfg-schema/src/Core/Schema";
 declare const _default: (app: ApplicationContainer, rules: ruleObject) => {
+    bind: {};
+    share: any;
+    save: any;
     props: {
         global_rules: {
             required: boolean;
@@ -10,10 +13,11 @@ declare const _default: (app: ApplicationContainer, rules: ruleObject) => {
     data(): {
         app: ApplicationContainer<{}>;
     };
+    beforeMount(): void;
     mounted(): void;
     unmounted(): void;
     methods: {
-        __on_component(rules: ruleObject): void;
+        __on_component(variables: anyObject): void;
     };
 };
 export default _default;
