@@ -14,7 +14,7 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     data () {
 
         return {
-            app,
+            app, __contained: false
         };
     },
 
@@ -23,6 +23,7 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
         let obj_name = this.$options.name + (this.$vnode && this.$vnode.key ? '_' + this.$vnode.key : '');
 
         app._cv[rules.id] = this;
+
         Object.keys(rules.v).map(key => this[key] = rules.v[key]);
         this.app.event.on(this.global_rules.id, this.__on_component);
 
@@ -64,10 +65,13 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     },
 
     mounted () {
+        if (this.app.server.container) {
 
+            this.__contained = !/^w[0-9]+/.test(String(rules.id)); //this.$el.closest(`#${this.app.server.container}`)
+        }
     },
 
-    unmounted () {
+    beforeUnmount () {
         this.app.event.off(this.global_rules.id, this.__on_component);
         app.obj.each(this.$options.bind, (bind_name: string) => {
             app.forget(bind_name);

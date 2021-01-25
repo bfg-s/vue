@@ -1,6 +1,6 @@
 {
   "name": "bfg-vue",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "bundle/index.js",
   "description": "Circuit controller for adapting VueJs3 components.",
   "types": "src/index.d.ts",

@@ -21,11 +21,17 @@ export default (app: ApplicationContainer) => {
 
             this.vue_app = app.vue.createApp({
                 mixins: [ApplicationMixin(app, rules)],
-                components: this.all_components,
+                methods: {
+                    unmount () {
+                        app.vue.render(null, element)
+                    }
+                },
                 render () {
                     return app.schema.wrap_component(rules, content_nodes);
                 }
             });
+
+            app.obj.each(this.all_components, (i: any, k: string) => this.vue_app.component(k, i));
 
             return this.vue_app.mount(element, true).$el;
         }
@@ -34,7 +40,7 @@ export default (app: ApplicationContainer) => {
 
             let resolved;
 
-            let params: object;
+            let params: anyObject;
 
             let contents: any = {
                 default: app.vue.withCtx(() => app.schema.apply_content(content_nodes)),
@@ -141,8 +147,10 @@ export default (app: ApplicationContainer) => {
 
                 app.request({
                     method: 'POST',
-                    body: app.form_data({[btoa(rules.id)]: method, bfg: true, ...args}),
-                    ...request_data
+                    body: app.form_data({[btoa(rules.id)]: method, ...args}),
+                    headers: {
+                        'BFG-TEMPLATE-REQUEST': 'true'
+                    }, ...request_data
                 }).then((result: any) => {
 
                     let schema = result.data.$schema || {};
@@ -183,6 +191,51 @@ export default (app: ApplicationContainer) => {
                         reject({err, xhr});
                     }
                 });
+            });
+        }
+
+        redirected (data: any, component: HTMLElement) {
+
+            app.obj.each(data.$configs || [], (v: any, n: string) => {
+
+                app.server[n] = v;
+            });
+
+            app.obj.each(data.$state || [], (state: any, to: string) => {
+
+                app.event.fire(to, state);
+            });
+
+            app.obj.each(app._av, (i: any, name: string) => {
+                if (i.__contained) {
+                    i.unmount();
+                    delete app._av[name];
+                }
+            });
+
+            component.innerHTML = data.$content;
+
+            if (data.$respond) {
+
+                app.call(data.$respond);
+            }
+
+            let elements: any = Object.values(component.childNodes);
+
+            elements.map((element: HTMLElement) => {
+
+                if (element instanceof HTMLElement) {
+
+                    this.app.schema.insert(
+                        element,
+                        this.app.schema.build(
+                            element,
+                            this.app.schema.rules(
+                                element
+                            )
+                        )
+                    );
+                }
             });
         }
     }

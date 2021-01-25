@@ -12,10 +12,11 @@ declare const _default: (app: ApplicationContainer, rules: ruleObject) => {
     };
     data(): {
         app: ApplicationContainer<{}>;
+        __contained: boolean;
     };
     beforeMount(): void;
     mounted(): void;
-    unmounted(): void;
+    beforeUnmount(): void;
     methods: {
         __on_component(variables: anyObject): void;
     };
