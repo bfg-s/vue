@@ -6,7 +6,7 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     data () {
 
         return {
-            app: app, __contained: false
+            app: app
         };
     },
 
@@ -15,12 +15,12 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
 
     },
 
+    beforeUpdate () {
+        app._av[rules.id] = this;
+    },
+
     mounted () {
         app._av[rules.id] = this;
-        if (this.app.server.container) {
-
-            this.__contained = this.$el.closest(`#${this.app.server.container}`)
-        }
     },
 
     unmounted () {
@@ -28,6 +28,7 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     },
 
     methods: {
+
 
     }
 });

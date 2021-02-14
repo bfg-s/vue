@@ -21,11 +21,6 @@ export default (app: ApplicationContainer) => {
 
             this.vue_app = app.vue.createApp({
                 mixins: [ApplicationMixin(app, rules)],
-                methods: {
-                    unmount () {
-                        app.vue.render(null, element)
-                    }
-                },
                 render () {
                     return app.schema.wrap_component(rules, content_nodes);
                 }
@@ -33,7 +28,10 @@ export default (app: ApplicationContainer) => {
 
             app.obj.each(this.all_components, (i: any, k: string) => this.vue_app.component(k, i));
 
-            return this.vue_app.mount(element, true).$el;
+            let appMount = this.vue_app.mount(element, true);
+            //Object.freeze(appMount.$el);
+            //console.log(appMount.$el);
+            return appMount.$el;
         }
 
         wrap_component (rules: ruleObject, content_nodes: Array<any>) {
@@ -194,33 +192,58 @@ export default (app: ApplicationContainer) => {
             });
         }
 
-        redirected (data: any, component: HTMLElement) {
+        clear () {
 
-            app.obj.each(data.$configs || [], (v: any, n: string) => {
-
-                app.server[n] = v;
-            });
-
-            app.obj.each(data.$state || [], (state: any, to: string) => {
-
-                app.event.fire(to, state);
-            });
-
-            app.obj.each(app._av, (i: any, name: string) => {
-                if (i.__contained) {
-                    i.unmount();
+            app.obj.each(app._cv, (i: any, name: string) => {
+                //console.log(name, i.__is_contained());
+                if (name in app._av && i.__is_contained()) {
+                    //console.log(i.$.appContext.app);
+                    i.$.appContext.app.unmount();
                     delete app._av[name];
+                    delete app._cv[name];
                 }
             });
+        }
 
-            component.innerHTML = data.$content;
+        content (data: any) {
 
-            if (data.$respond) {
+            let container: string|null = this.app.server.container;
 
-                app.call(data.$respond);
+            let component: HTMLElement = container ?
+                document.getElementById(container) : document.body;
+
+            if (typeof data === 'object' && '$content' in data) {
+
+                app.obj.each(data.$configs || [], (v: any, n: string) => {
+
+                    app.server[n] = v;
+                });
+
+                app.obj.each(data.$state || [], (state: any, to: string) => {
+
+                    app.event.fire(to, state);
+                });
+
+                app.schema.clear();
+
+                component.innerHTML = data.$content;
+
+                if (data.$respond) {
+
+                    app.call(data.$respond);
+                }
+
+            } else {
+
+                app.schema.clear();
+
+                if (component) {
+
+                    component.innerHTML = typeof data === 'object' ? app.json.encode(data, 2) : data;
+                }
             }
 
-            let elements: any = Object.values(component.childNodes);
+            let elements: any = component ? Object.values(component.childNodes) : [];
 
             elements.map((element: HTMLElement) => {
 
@@ -237,6 +260,30 @@ export default (app: ApplicationContainer) => {
                     );
                 }
             });
+        }
+
+        insert (element: HTMLElement, data: any) {
+
+            if (element.parentNode) {
+
+                element.parentNode.replaceChild(data, element);
+                //element.appendChild(data);
+            }
+        }
+
+        context (context: any, ...mixins: Array<object>) {
+            return this.app.components.context(
+                context, (component: any) => {
+                    if (!('mixins' in component)) {
+                        component.mixins = [];
+                    }
+                    component.mixins.push(ComponentMixin(this.app, {
+                        id: component.name, a: [], c: null, e: component.name, m: [], v: []
+                    }));
+                    component.mixins.concat(mixins);
+                    return component;
+                }
+            );
         }
     }
 };

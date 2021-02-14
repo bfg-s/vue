@@ -3,9 +3,9 @@ import { ruleObject } from "bfg-schema/src/Core/Schema";
 declare const _default: (app: ApplicationContainer, rules: ruleObject) => {
     data(): {
         app: ApplicationContainer<{}>;
-        __contained: boolean;
     };
     beforeMount(): void;
+    beforeUpdate(): void;
     mounted(): void;
     unmounted(): void;
     methods: {};

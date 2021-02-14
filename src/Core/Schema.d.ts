@@ -10,7 +10,10 @@ declare const _default: (app: ApplicationContainer) => {
         apply_content(content: Array<HTMLElement>): any[];
         apply_methods(rules: ruleObject): anyObject;
         method_request(rules: ruleObject, method: string, params: Array<object>, request_data?: object): Promise<unknown>;
-        redirected(data: any, component: HTMLElement): void;
+        clear(): void;
+        content(data: any): void;
+        insert(element: HTMLElement, data: any): void;
+        context(context: any, ...mixins: Array<object>): any;
     };
     [x: string]: any;
 };

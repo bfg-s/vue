@@ -4,28 +4,38 @@ import {anyObject, ruleObject} from "bfg-schema/src/Core/Schema";
 export default (app: ApplicationContainer, rules: ruleObject) => ({
 
     bind: {},
+    singleton: {},
+    compute: {},
+    provider: null as any,
     share: [] as any,
+    with: [] as any,
     save: [] as any,
 
     props: {
-        global_rules: {required: true, type: Object}
+        global_rules: {type: Object}
     },
 
     data () {
 
         return {
-            app, __contained: false
+            app
         };
+    },
+
+    beforeUpdate () {
+        app._cv[rules.id] = this;
     },
 
     beforeMount() {
 
         let obj_name = this.$options.name + (this.$vnode && this.$vnode.key ? '_' + this.$vnode.key : '');
 
-        app._cv[rules.id] = this;
+        if (this.global_rules) {
 
-        Object.keys(rules.v).map(key => this[key] = rules.v[key]);
-        this.app.event.on(this.global_rules.id, this.__on_component);
+            app._cv[rules.id] = this;
+            Object.keys(rules.v).map(key => this[key] = rules.v[key]);
+            this.app.event.on(this.global_rules.id, this.__on_component);
+        }
 
         app.obj.each(this.$options.save, (v: string) => {
             let k = `vue-${obj_name}-${v}`;
@@ -43,6 +53,7 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
 
         app.obj.each(this.$options.share, (to: string, from: string|number) => {
             if (app.num.isNumber(from)) from = to;
+
             app.vue.watch(() => this[from], (val: any) => {
                 app.shared_data[to] = val;
             });
@@ -62,13 +73,25 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
             if (app.num.isNumber(inner_method)) inner_method = bind_name;
             app.bind(bind_name, this[inner_method]);
         });
+
+        app.obj.each(this.$options.singleton, (bind_name: string, inner_method: string) => {
+            if (app.num.isNumber(inner_method)) inner_method = bind_name;
+            app.singleton(bind_name, typeof this[inner_method] === 'function' ? this[inner_method] : () => this[inner_method]);
+        });
+
+        app.obj.each(this.$options.compute, (bind_name: string, inner_method: string) => {
+            if (app.num.isNumber(inner_method)) inner_method = bind_name;
+            app.compute(bind_name, typeof this[inner_method] === 'function' ? this[inner_method] : () => this[inner_method]);
+        });
+
+        if (typeof this.$options.provider === 'object') {
+
+            //app.provider(this.$options.provider);
+        }
     },
 
     mounted () {
-        if (this.app.server.container) {
-
-            this.__contained = !/^w[0-9]+/.test(String(rules.id)); //this.$el.closest(`#${this.app.server.container}`)
-        }
+        app._cv[rules.id] = this;
     },
 
     beforeUnmount () {
@@ -79,6 +102,12 @@ export default (app: ApplicationContainer, rules: ruleObject) => ({
     },
 
     methods: {
+
+        __is_contained () {
+            return !/^w[0-9]+/.test(
+                String(rules.id).split("\\")[1]
+            );
+        },
 
         __on_component (variables: anyObject) {
             this.app.obj.each(variables, (val: any, key: string) => {
